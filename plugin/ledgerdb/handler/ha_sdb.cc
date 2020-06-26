@@ -26,11 +26,13 @@
 #include "ha_sdb_idx.h"
 #include "ha_sdb_log.h"
 #include "ha_sdb_thd.h"
+#include "ha_ldb_udf.h"
 #include "ha_sdb_util.h"
 #include <client.hpp>
 #include <my_bit.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_file.h>
+#include "bson/lib/base64.h"
 #include <sql_class.h>
 #include <sql_insert.h>
 #include <sql_table.h>
@@ -2833,16 +2835,22 @@ bool ha_sdb::check_element_type_compatible(bson::BSONElement &elem,
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_BLOB: {
       if (((Field_str *)field)->binary()) {
-        compatible = (elem.type() == bson::BinData);
+        compatible = (elem.type() == bson::BinData) ||
+                     (elem.type() == bson::Object) ||
+                     (elem.type() == bson::Array);
       } else {
-        compatible = (elem.type() == bson::String);
+        compatible = (elem.type() == bson::String) ||
+                     (elem.type() == bson::Object) ||
+                     (elem.type() == bson::Array);
       }
       break;
     }
     // is binary
 #ifdef IS_MYSQL
     case MYSQL_TYPE_JSON: {
-      compatible = (elem.type() == bson::BinData);
+      compatible = (elem.type() == bson::BinData) ||
+                   (elem.type() == bson::Object) ||
+                   (elem.type() == bson::Array);
       break;
     }
 #endif
@@ -2994,6 +3002,11 @@ int ha_sdb::bson_element_to_field(const bson::BSONElement elem, Field *field) {
       break;
     }
     case bson::Object:
+    case bson::Array: {
+      string str(elem.toString(false, true));
+      field->store(str.c_str(), str.length(), &LDB_CHARSET);
+      break;
+    }
     default:
       rc = LDB_ERR_TYPE_UNSUPPORTED;
       goto error;
@@ -3136,7 +3149,6 @@ int ha_sdb::rnd_next(uchar *buf) {
       rc = collection->query(condition, selector, LDB_EMPTY_BSON, hint, 0,
                              num_to_return, flag);
     }
-
     if (rc != 0) {
       goto error;
     }
@@ -5322,7 +5334,6 @@ static int ldb_done_func(void *p) {
   ldb_string_free(&ldb_encoded_password);
   return 0;
 }
-
 static struct st_mysql_storage_engine ldb_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 

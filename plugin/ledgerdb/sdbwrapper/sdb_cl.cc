@@ -113,9 +113,17 @@ int cl_query(ldbclient::ldbCollection *cl, ldbclient::ldbCursor **cursor,
 int Sdb_cl::query(const bson::BSONObj &condition, const bson::BSONObj &selected,
                   const bson::BSONObj &order_by, const bson::BSONObj &hint,
                   longlong num_to_skip, longlong num_to_return, int flags) {
-  return retry(boost::bind(cl_query, m_cl, &m_cursor, &condition, &selected,
-                           &order_by, &hint, num_to_skip, num_to_return,
-                           flags));
+  if (strcmp(m_cl->getFullName(), "ledgerdb.transHistory") == 0)
+  {
+     int trxId = 0;
+     trxId = condition.getField("trxId").numberInt();
+     return m_conn->get_ldb().transHistory(&m_cursor, trxId);
+  }
+  else {
+     return retry(boost::bind(cl_query, m_cl, &m_cursor, &condition, &selected,
+                              &order_by, &hint, num_to_skip, num_to_return,
+                              flags));
+  }
 }
 
 int cl_query_one(ldbclient::ldbCollection *cl, bson::BSONObj *obj,

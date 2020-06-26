@@ -30,7 +30,7 @@
 
 class Sdb_cl;
 class Sdb_statistics;
-
+const static bson::BSONObj ldbStaticObject;
 class Sdb_conn {
  public:
   Sdb_conn(my_thread_id _tid);
@@ -38,6 +38,7 @@ class Sdb_conn {
   ~Sdb_conn();
 
   int connect();
+  void disconnect();
 
   ldbclient::ldb &get_ldb();
 
@@ -87,6 +88,8 @@ class Sdb_conn {
   int get_last_error(bson::BSONObj &errObj) {
     return m_connection.getLastErrorObj(errObj);
   };
+
+  int getDigest(bson::BSONObj &result, bson::BSONObj addr = ldbStaticObject);
 
  private:
   int retry(boost::function<int()> func);

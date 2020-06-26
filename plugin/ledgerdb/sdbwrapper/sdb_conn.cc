@@ -132,13 +132,14 @@ int Sdb_conn::connect() {
              strlen(hostname) ? ":" : "", hostname, ldb_proc_id(),
              (ulonglong)thread_id());
     bool auto_commit = true;
+    /* TODO
     option = BSON(SOURCE_THREAD_ID << source_str << TRANSAUTOROLLBACK << false
                                    << TRANSAUTOCOMMIT << auto_commit);
     rc = set_session_attr(option);
     if (LDB_ERR_OK != rc) {
       LDB_LOG_ERROR("Failed to set session attr, rc=%d", rc);
       goto error;
-    }
+    }*/
   }
 
 done:
@@ -148,6 +149,9 @@ error:
   goto done;
 }
 
+void Sdb_conn::disconnect() {
+  m_connection.disconnect();
+}
 int Sdb_conn::begin_transaction() {
   DBUG_ENTER("Sdb_conn::begin_transaction");
   int rc = LDB_ERR_OK;
@@ -542,4 +546,8 @@ int conn_interrupt(ldbclient::ldb *connection) {
 
 int Sdb_conn::interrupt_operation() {
   return retry(boost::bind(conn_interrupt, &m_connection));
+}
+
+int Sdb_conn::getDigest(bson::BSONObj &result, bson::BSONObj addr){
+  return m_connection.getDigest(result, addr);
 }
